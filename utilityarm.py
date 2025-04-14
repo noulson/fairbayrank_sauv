@@ -98,30 +98,6 @@ def auc_per_user(Rec, test_df, train_df):
 
     return sum(scores) / len(scores)
 
-def auc_per_user_multiclass(Rec, test_df, train_df):
-    Rec = copy.copy(Rec)
-    
-    user_num = Rec.shape[0]
-    item_num = Rec.shape[1]
-    items = list(range(item_num))
-    scores = []
-    
-    for u in range(user_num):
-        like_item = (train_df.loc[train_df['user_id'] == u, 'item_id']).tolist()
-        Rec[u, like_item] = 0
-
-    for u in range(user_num):  # iterate each user
-        u_test = (test_df.loc[test_df['user_id'] == u, 'item_id']).tolist()
-        u_pred = Rec[u, :].reshape(-1)
-        
-        grnd = np.zeros(item_num, dtype=np.int32)
-        for p in u_test:
-            index = items.index(p)
-            grnd[index] = 1
-        scores.append(roc_auc_score(grnd, u_pred, multi_class='ovr'))
-
-    return sum(scores) / len(scores)
-
 def auc_per_user_type(Rec, test_df, train_df, user_test, user_idd_type_list, key_type):
     test_dict = dict()
     user_id_type_test_dict = dict()
@@ -170,53 +146,6 @@ def auc_per_user_type(Rec, test_df, train_df, user_test, user_idd_type_list, key
  
     return auc
 
-def auc_per_user_type_multiclass(Rec, test_df, train_df, user_test, user_idd_type_list, key_type):
-    test_dict = dict()
-    user_id_type_test_dict = dict()
-    auc = dict()   
-
-    for k in key_type:
-        test_dict[k] = 0.0
-        user_id_type_test_dict[k] = []
-        
-    for t in user_test:
-        gl = user_idd_type_list[t]
-        for g in gl:
-            if g in key_type:
-                test_dict[g] += 1.0
-                user_id_type_test_dict[g].append(t)
-                
-    for g in key_type:
-        auc[g] = 0.0
-
-    Rec = copy.copy(Rec)
-    
-    user_num = Rec.shape[0]
-    item_num = Rec.shape[1]
-    items = list(range(item_num))
-    scores = []
-   
-    for u in range(user_num):
-        like_item = (train_df.loc[train_df['user_id'] == u, 'item_id']).tolist()
-        Rec[u, like_item] = 0
-        
-    for g in key_type:
-        auc_per_type = []
- 
-        user_id_per_type = user_id_type_test_dict[g]
-        for u in user_id_per_type:  # iterate each user in each user type
-            u_test = (test_df.loc[test_df['user_id'] == u, 'item_id']).tolist()
-            u_pred = Rec[u, :].reshape(-1)
-
-            grnd = np.zeros(item_num, dtype=np.int32)
-            for p in u_test:
-                index = items.index(p)
-                grnd[index] = 1
-            auc_per_type.append(roc_auc_score(grnd, u_pred, multi_class='ovr'))
-
-        auc[g] = sum(auc_per_type) / len(auc_per_type)
- 
-    return auc
 
     
 def metric_per_user_type(Rec, test_df, train_df, user_test, user_idd_type_list, key_type):
@@ -359,37 +288,6 @@ def test_model_per_user_type(Rec, test_df, train_df, user_idd_type_list, key_typ
     user_test = list(range(user_num))
     precision, recall, ndcg = metric_per_user_type(Rec, test_df, train_df, user_test, user_idd_type_list, key_type)
     auc = auc_per_user_type(Rec, test_df, train_df, user_test, user_idd_type_list, key_type)
-#    print('test precision',precision)
-    for k in key_type:
-        print('Metrics for user type\t',k)
-#         print('test precision',precision)
-        print('precision_1\t[%.7f],\t||\t precision_5\t[%.7f],\t||\t precision_10\t[%.7f],\t||\t precision_15\t[%.7f]' \
-          % (precision[k][0].tolist()[0], precision[k][0].tolist()[1], precision[k][0].tolist()[2], precision[k][0].tolist()[3]))
-        print('recall_1\t[%.7f],\t||\t recall_5\t[%.7f],\t||\t recall_10\t[%.7f],\t||\t recall_15\t[%.7f]' \
-          % (recall[k][0].tolist()[0], recall[k][0].tolist()[1], recall[k][0].tolist()[2], recall[k][0].tolist()[3]))
-        print('ndcg_1\t[%.7f],\t||\t ndcg_5\t[%.7f],\t||\t ndcg_10\t[%.7f],\t||\t ndcg_15\t[%.7f]' \
-          % (ndcg[k][0].tolist()[0], ndcg[k][0].tolist()[1], ndcg[k][0].tolist()[2], ndcg[k][0].tolist()[3]))
-        print('AUC per user type\t[%.7f]' % (auc[k]))
-    return precision, recall, ndcg, auc
-
-#calcul de metrique pour chaque type d'utilisateur
-def test_model_per_user_type_multiclass(Rec, test_df, train_df, user_idd_type_list, key_type):
-    Rec = copy.copy(Rec)
-    
-    precision = dict()
-    recall = dict()
-    ndcg = dict()
-    auc = dict()
-    
-    for k in key_type:
-        precision[k] = np.array([0.0, 0.0, 0.0, 0.0])
-        recall[k] = np.array([0.0, 0.0, 0.0, 0.0])
-        ndcg[k] = np.array([0.0, 0.0, 0.0, 0.0])
-    
-    user_num = Rec.shape[0]
-    user_test = list(range(user_num))
-    precision, recall, ndcg = metric_per_user_type(Rec, test_df, train_df, user_test, user_idd_type_list, key_type)
-    auc = auc_per_user_type_multiclass(Rec, test_df, train_df, user_test, user_idd_type_list, key_type)
 #    print('test precision',precision)
     for k in key_type:
         print('Metrics for user type\t',k)
